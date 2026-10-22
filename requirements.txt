@@ -1,0 +1,4 @@
+fastmcp>=4.0.0b1
+cyclopts>=5.0.0a1
+python-dotenv>=1.0.0
+uvicorn>=0.52.0

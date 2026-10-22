@@ -1,0 +1,39 @@
+# Credentials -- never commit these.
+# The negation must come after .env.* so the template stays tracked.
+.env
+.env.*
+!.env.example
+
+# Virtualenv
+.venv/
+venv/
+ENV/
+
+# Python bytecode / caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Packaging artefacts
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Runtime logs
+*.log
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+
+# OS cruft
+.DS_Store
+Thumbs.db
+
+# Personal Claude Code settings
+.claude/settings.local.json
