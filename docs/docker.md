@@ -1,8 +1,14 @@
-# Running with Docker
+# Running in a container
 
 The `Dockerfile` builds a slim image that serves the same HTTP app on port
 8765. `.env` is excluded by `.dockerignore`, so credentials are never baked
-into the image — pass them at run time:
+into the image — pass them at run time.
+
+The commands below use `docker`. On macOS, Apple's
+[`container`](https://github.com/apple/container) CLI takes the same
+subcommands and flags (`build`, `run -d --env-file -e -p`, `logs`, `stats`,
+`rm -f`), so substitute `container` for `docker` throughout. All of these were
+verified with `container` 1.5.0.
 
 ```bash
 docker build -t soliscloud-mcp-server:latest .
@@ -37,20 +43,3 @@ docker rm -f soliscloud-mcp-server && docker build -t soliscloud-mcp-server:late
 ```
 
 then run it again as above.
-
-## Apple `container` (macOS)
-
-The same image works with Apple's
-[`container`](https://github.com/apple/container) CLI, and the commands mirror
-Docker's, including `-p` port publishing:
-
-```bash
-container build -t soliscloud-mcp-server:latest .
-container run -d --name soliscloud-mcp-server --env-file .env -p 127.0.0.1:8765:8765 soliscloud-mcp-server:latest
-```
-
-The MCP endpoint is then `http://127.0.0.1:8765/mcp`, the same as with Docker,
-so client configs work unchanged. As above, keep the port bound to `127.0.0.1`.
-The 1Password variant works the same way with `container run` in place of
-`docker run`, and `container logs`, `container stats` and `container rm -f`
-cover monitoring and rebuilding.
