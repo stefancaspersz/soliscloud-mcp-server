@@ -1,8 +1,14 @@
-# Running with Docker
+# Running in a container
 
 The `Dockerfile` builds a slim image that serves the same HTTP app on port
 8765. `.env` is excluded by `.dockerignore`, so credentials are never baked
-into the image — pass them at run time:
+into the image — pass them at run time.
+
+The commands below use `docker`. On macOS, Apple's
+[`container`](https://github.com/apple/container) CLI takes the same
+subcommands and flags (`build`, `run -d --env-file -e -p`, `logs`, `stats`,
+`rm -f`), so substitute `container` for `docker` throughout. All of these were
+verified with `container` 1.5.0.
 
 ```bash
 docker build -t soliscloud-mcp-server:latest .
@@ -37,13 +43,3 @@ docker rm -f soliscloud-mcp-server && docker build -t soliscloud-mcp-server:late
 ```
 
 then run it again as above.
-
-## Apple `container` (macOS)
-
-The same image works with Apple's
-[`container`](https://github.com/apple/container) CLI — the commands mirror
-Docker's (`container build`, `container run -e ... -d`, `container logs`,
-`container stats`). It gives the container its own address instead of
-publishing a port: find it with `container ls` and use
-`http://<container-ip>:8765/mcp`. The address can change when the container is
-recreated, so update your client config if it stops connecting.

@@ -93,7 +93,7 @@ asyncio.run(main())
 your `.env` file lives — otherwise export the variables first, or pass the path
 explicitly: `load_dotenv('/path/to/.env')`.)
 
-### Docker
+### Docker or Apple `container`
 
 ```bash
 docker build -t soliscloud-mcp-server:latest .
@@ -101,8 +101,9 @@ docker run -d --name soliscloud-mcp-server --env-file .env -p 127.0.0.1:8765:876
 ```
 
 The server has no authentication of its own, so keep the port bound to
-`127.0.0.1`. See [docs/docker.md](docs/docker.md) for 1Password `op run`,
-rebuilding, and Apple `container`.
+`127.0.0.1`. The same commands work with Apple's `container` CLI in place of
+`docker`. See [docs/docker.md](docs/docker.md) for 1Password `op run` and
+rebuilding.
 
 ## 5. Add it to an MCP client
 
@@ -211,7 +212,7 @@ back unchanged, or you will blank them.
 - [API behaviour worth knowing](docs/api-behaviour.md) — measured quirks of the
   live API: `*Pec` scaling, why power samples can't be summed into energy,
   timezones and daylight saving, rate limits, and where the spec is wrong.
-- [Running with Docker](docs/docker.md) — 1Password, rebuilding, Apple `container`.
+- [Running in a container](docs/docker.md) — Docker or Apple `container`, 1Password, rebuilding.
 - [Development](docs/development.md) — API spec version, request signing, tests,
   known gaps.
 
