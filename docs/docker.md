@@ -41,9 +41,16 @@ then run it again as above.
 ## Apple `container` (macOS)
 
 The same image works with Apple's
-[`container`](https://github.com/apple/container) CLI — the commands mirror
-Docker's (`container build`, `container run -e ... -d`, `container logs`,
-`container stats`). It gives the container its own address instead of
-publishing a port: find it with `container ls` and use
-`http://<container-ip>:8765/mcp`. The address can change when the container is
-recreated, so update your client config if it stops connecting.
+[`container`](https://github.com/apple/container) CLI, and the commands mirror
+Docker's, including `-p` port publishing:
+
+```bash
+container build -t soliscloud-mcp-server:latest .
+container run -d --name soliscloud-mcp-server --env-file .env -p 127.0.0.1:8765:8765 soliscloud-mcp-server:latest
+```
+
+The MCP endpoint is then `http://127.0.0.1:8765/mcp`, the same as with Docker,
+so client configs work unchanged. As above, keep the port bound to `127.0.0.1`.
+The 1Password variant works the same way with `container run` in place of
+`docker run`, and `container logs`, `container stats` and `container rm -f`
+cover monitoring and rebuilding.
