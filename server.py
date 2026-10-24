@@ -144,15 +144,21 @@ def get_client() -> SolisCloudClient:
 async def _call(path: str, params: dict[str, Any] | None = None) -> Any:
     """Call the API, surfacing failures as MCP tool errors (isError=true)."""
     try:
-        return await get_client().call(path, params)
-    except SolisCloudAPIError as exc:
-        code = f" {exc.code}" if exc.code else ""
-        hint = ""
-        if exc.status_code in (401, 403):
-            hint = " (SolisCloud rejected the request signature: check SOLIS_KEY_ID and SOLIS_KEY_SECRET)"
-        raise ToolError(f"SolisCloud API error{code}: {exc}{hint}") from exc
-    except OSError as exc:  # URLError and socket timeouts both subclass OSError
-        raise ToolError(f"Could not reach SolisCloud: {exc}") from exc
+        try:
+            return await get_client().call(path, params)
+        except SolisCloudAPIError as exc:
+            code = f" {exc.code}" if exc.code else ""
+            hint = ""
+            if exc.status_code in (401, 403):
+                hint = " (SolisCloud rejected the request signature: check SOLIS_KEY_ID and SOLIS_KEY_SECRET)"
+            raise ToolError(f"SolisCloud API error{code}: {exc}{hint}") from exc
+        except OSError as exc:  # URLError and socket timeouts both subclass OSError
+            raise ToolError(f"Could not reach SolisCloud: {exc}") from exc
+    except ToolError as exc:
+        # The HTTP response is still 200, so this line is the only trace of the
+        # failure in the server log.
+        log.warning("%s failed: %s", path, exc)
+        raise
 
 
 # ---------------------------------------------------------------------------
