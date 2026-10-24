@@ -1,5 +1,10 @@
 FROM python:3.15-slim-trixie
 
+LABEL org.opencontainers.image.description="My soliscloud MCP server" \
+      org.opencontainers.image.licenses="MIT" \
+      org.opencontainers.image.source="https://github.com/stefancaspersz/soliscloud-mcp-server"
+
+
 WORKDIR /app
 
 COPY requirements.txt .
