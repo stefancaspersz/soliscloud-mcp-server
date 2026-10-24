@@ -41,6 +41,7 @@ SOLIS_ENABLE_WRITES     (optional) set to 1/true/yes to also expose the five
 
 from __future__ import annotations
 
+import logging
 import os
 import re
 from collections.abc import Iterable
@@ -94,31 +95,70 @@ READ = ToolAnnotations(readOnlyHint=True, idempotentHint=True, openWorldHint=Tru
 
 _client: Optional[SolisCloudClient] = None
 
+# uvicorn configures this logger before importing the app, so messages logged
+# here appear in the container log alongside uvicorn's own.
+log = logging.getLogger("uvicorn.error")
+
+
+def credential_problems() -> list[str]:
+    """Describe what is wrong with the SolisCloud settings; empty when usable."""
+    problems = []
+    unresolved = []
+    for var in ("SOLIS_KEY_ID", "SOLIS_KEY_SECRET", "SOLIS_API_BASE_URL"):
+        value = os.environ.get(var, "").strip()
+        if not value:
+            # The base URL has a default, so only the keys are required.
+            if var != "SOLIS_API_BASE_URL":
+                problems.append(f"{var} is not set or empty")
+        elif value.startswith("op://"):
+            unresolved.append(var)
+        elif var == "SOLIS_API_BASE_URL" and not re.match(r"https?://", value):
+            problems.append(f"SOLIS_API_BASE_URL must start with https:// (got {value!r})")
+    if unresolved:
+        problems.append(
+            f"unresolved 1Password op:// reference in {', '.join(unresolved)}; "
+            "start the server through `op run --env-file=.env -- ...`"
+        )
+    return problems
+
 
 def get_client() -> SolisCloudClient:
     global _client
     if _client is None:
-        key_id = os.environ.get("SOLIS_KEY_ID")
-        key_secret = os.environ.get("SOLIS_KEY_SECRET")
-        base_url = os.environ.get("SOLIS_API_BASE_URL", DEFAULT_BASE_URL)
-        if not key_id or not key_secret:
+        problems = credential_problems()
+        if problems:
             raise ToolError(
-                "SOLIS_KEY_ID and SOLIS_KEY_SECRET environment variables must be set. "
-                "Get these from SolisCloud > Service > API Management."
+                "SolisCloud credentials are not configured: "
+                + "; ".join(problems)
+                + ". Get the KeyId, KeySecret and API URL from SolisCloud > "
+                "Service > API Management."
             )
-        _client = SolisCloudClient(key_id, key_secret, base_url=base_url)
+        _client = SolisCloudClient(
+            os.environ["SOLIS_KEY_ID"].strip(),
+            os.environ["SOLIS_KEY_SECRET"].strip(),
+            base_url=os.environ.get("SOLIS_API_BASE_URL", "").strip() or DEFAULT_BASE_URL,
+        )
     return _client
 
 
 async def _call(path: str, params: dict[str, Any] | None = None) -> Any:
     """Call the API, surfacing failures as MCP tool errors (isError=true)."""
     try:
-        return await get_client().call(path, params)
-    except SolisCloudAPIError as exc:
-        code = f" {exc.code}" if exc.code else ""
-        raise ToolError(f"SolisCloud API error{code}: {exc}") from exc
-    except OSError as exc:  # URLError and socket timeouts both subclass OSError
-        raise ToolError(f"Could not reach SolisCloud: {exc}") from exc
+        try:
+            return await get_client().call(path, params)
+        except SolisCloudAPIError as exc:
+            code = f" {exc.code}" if exc.code else ""
+            hint = ""
+            if exc.status_code in (401, 403):
+                hint = " (SolisCloud rejected the request signature: check SOLIS_KEY_ID and SOLIS_KEY_SECRET)"
+            raise ToolError(f"SolisCloud API error{code}: {exc}{hint}") from exc
+        except OSError as exc:  # URLError and socket timeouts both subclass OSError
+            raise ToolError(f"Could not reach SolisCloud: {exc}") from exc
+    except ToolError as exc:
+        # The HTTP response is still 200, so this line is the only trace of the
+        # failure in the server log.
+        log.warning("%s failed: %s", path, exc)
+        raise
 
 
 # ---------------------------------------------------------------------------
@@ -1157,6 +1197,18 @@ def _enabled_toolsets() -> set[str]:
 
 
 mcp.enable(tags=_enabled_toolsets(), only=True)
+
+# Refuse to start without usable credentials: every tool call would fail, and
+# the HTTP layer would still answer 200, hiding the cause.
+_problems = credential_problems()
+if _problems:
+    for _problem in _problems:
+        log.error("SolisCloud credentials: %s", _problem)
+    log.error(
+        "Refusing to start. Get the KeyId, KeySecret and API URL from SolisCloud > "
+        "Service > API Management."
+    )
+    raise SystemExit(1)
 
 
 # def main() -> None:

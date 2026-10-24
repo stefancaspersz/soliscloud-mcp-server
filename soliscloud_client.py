@@ -121,7 +121,7 @@ class SolisCloudClient:
         if status_code != 200:
             raise SolisCloudAPIError(
                 data.get("msg", f"HTTP {status_code}"),
-                code=str(data.get("code")) if isinstance(data, dict) else None,
+                code=str(data["code"]) if isinstance(data, dict) and data.get("code") is not None else None,
                 status_code=status_code,
             )
 

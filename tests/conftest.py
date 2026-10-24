@@ -17,6 +17,12 @@ import pytest
 for _var in ("SOLIS_TOOLSETS", "SOLIS_ENABLE_WRITES", "SOLIS_DEFAULT_TIMEZONE"):
     os.environ.pop(_var, None)
 
+# server.py exits on import without credentials. Offline tests never reach the
+# API, so placeholders will do; live runs keep the real ones.
+if os.environ.get("SOLIS_LIVE") != "1":
+    os.environ.setdefault("SOLIS_KEY_ID", "test-key-id")
+    os.environ.setdefault("SOLIS_KEY_SECRET", "test-key-secret")
+
 import server  # noqa: E402
 from fastmcp import Client  # noqa: E402
 

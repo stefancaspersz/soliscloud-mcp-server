@@ -2,7 +2,11 @@
 
 import asyncio
 import copy
+import os
+import subprocess
+import sys
 import urllib.error
+from pathlib import Path
 
 import pytest
 from fastmcp import Client
@@ -200,6 +204,40 @@ def test_missing_credentials_is_tool_error(fresh_server, call, monkeypatch):
     assert "SOLIS_KEY_ID" in text
 
 
+@pytest.mark.parametrize(
+    "env, expected",
+    [
+        ({"SOLIS_KEY_ID": "", "SOLIS_KEY_SECRET": "s"}, "SOLIS_KEY_ID is not set or empty"),
+        ({"SOLIS_KEY_ID": "k", "SOLIS_KEY_SECRET": "  "}, "SOLIS_KEY_SECRET is not set or empty"),
+        (
+            {"SOLIS_KEY_ID": "op://Private/Solis/key id", "SOLIS_KEY_SECRET": "s"},
+            "unresolved 1Password op:// reference in SOLIS_KEY_ID",
+        ),
+        (
+            {"SOLIS_KEY_ID": "k", "SOLIS_KEY_SECRET": "s", "SOLIS_API_BASE_URL": "soliscloud.com"},
+            "SOLIS_API_BASE_URL must start with https://",
+        ),
+    ],
+)
+def test_bad_credentials_name_the_variable(fresh_server, call, monkeypatch, env, expected):
+    monkeypatch.setattr(server, "_client", None)
+    monkeypatch.delenv("SOLIS_API_BASE_URL", raising=False)
+    for var, value in env.items():
+        monkeypatch.setenv(var, value)
+    err, text = call("get_station", {"station_id": STATION_ID})
+    assert err
+    assert expected in text
+
+
+def test_empty_base_url_uses_default(fresh_server, monkeypatch):
+    monkeypatch.setattr(server, "_client", None)
+    monkeypatch.setenv("SOLIS_KEY_ID", "k")
+    monkeypatch.setenv("SOLIS_KEY_SECRET", "s")
+    monkeypatch.setenv("SOLIS_API_BASE_URL", "")
+    assert server.credential_problems() == []
+    assert server.get_client()._base_url == "https://www.soliscloud.com:13333"
+
+
 def test_alarms_are_trimmed_with_utc_times(api, call):
     err, data = call("list_alarms", {"station_id": STATION_ID})
     assert not err
@@ -208,3 +246,17 @@ def test_alarms_are_trimmed_with_utc_times(api, call):
     assert set(first) <= set(server.ALARM_FIELDS)
     assert first["alarmBeginTime"] == "2025-05-12T00:02:10+00:00"
     assert first["alarmMsg"] == "GRID INTF"
+
+
+def test_server_refuses_to_start_without_credentials():
+    env = {k: v for k, v in os.environ.items() if not k.startswith("SOLIS_")}
+    result = subprocess.run(
+        [sys.executable, "-c", "import server"],
+        cwd=Path(server.__file__).parent,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 1
+    assert "SOLIS_KEY_ID is not set or empty" in result.stderr
+    assert "Refusing to start" in result.stderr
