@@ -2,7 +2,11 @@
 
 import asyncio
 import copy
+import os
+import subprocess
+import sys
 import urllib.error
+from pathlib import Path
 
 import pytest
 from fastmcp import Client
@@ -242,3 +246,17 @@ def test_alarms_are_trimmed_with_utc_times(api, call):
     assert set(first) <= set(server.ALARM_FIELDS)
     assert first["alarmBeginTime"] == "2025-05-12T00:02:10+00:00"
     assert first["alarmMsg"] == "GRID INTF"
+
+
+def test_server_refuses_to_start_without_credentials():
+    env = {k: v for k, v in os.environ.items() if not k.startswith("SOLIS_")}
+    result = subprocess.run(
+        [sys.executable, "-c", "import server"],
+        cwd=Path(server.__file__).parent,
+        env=env,
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 1
+    assert "SOLIS_KEY_ID is not set or empty" in result.stderr
+    assert "Refusing to start" in result.stderr

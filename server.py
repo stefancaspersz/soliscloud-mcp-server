@@ -1198,10 +1198,17 @@ def _enabled_toolsets() -> set[str]:
 
 mcp.enable(tags=_enabled_toolsets(), only=True)
 
-# Keep serving so the client can connect, but say up front why every tool
-# call is going to fail.
-for _problem in credential_problems():
-    log.error("SolisCloud credentials: %s. Every tool call will fail until this is fixed.", _problem)
+# Refuse to start without usable credentials: every tool call would fail, and
+# the HTTP layer would still answer 200, hiding the cause.
+_problems = credential_problems()
+if _problems:
+    for _problem in _problems:
+        log.error("SolisCloud credentials: %s", _problem)
+    log.error(
+        "Refusing to start. Get the KeyId, KeySecret and API URL from SolisCloud > "
+        "Service > API Management."
+    )
+    raise SystemExit(1)
 
 
 # def main() -> None:
